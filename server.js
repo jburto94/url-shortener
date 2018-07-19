@@ -2,17 +2,18 @@ const express = require('express'),
       mongo = require('mongodb'),
       mongoose = require('mongoose'),
       Schema = mongoose.Schema,
-      AutoIncrement = require('mongoose-sequence'),
+      AutoIncrement = require('mongoose-sequence')(mongoose),
       bodyParser = require('body-parser'),
       dns = require('dns');
 
+require('dotenv').config();
+
 const app = express();
-const port = process.env.PORT || 3000;
 
 mongoose.connect(process.env.MONGO_URI);
 
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use('/public', express.static(precoess.cwd() + '/public'));
+app.use('/public', express.static(process.cwd() + '/public'));
 
 app.get('/', (req, res) => res.sendFile(process.cwd() + '/views/index.html'));
 
@@ -26,7 +27,7 @@ const urlSchema = new Schema({
 urlSchema.plugin(AutoIncrement, { inc_field: 'short_url' });
 const URL = mongoose.model('URL', urlSchema);
 
-const validateURL = (domain, res, next) => {
+const validateURL = (domain, res) => {
   const prefix = /^http[s]?:\/\//;
   const www = /^www./;
   
@@ -47,7 +48,7 @@ const validateURL = (domain, res, next) => {
     } else {
       URL.findOne({ original_url: newUrl }, (err, data) => {
         if(err) {
-          return next(err);
+          return console.log(err);
         }
 
         if(data) {
@@ -57,15 +58,15 @@ const validateURL = (domain, res, next) => {
           });
         } else {
           const url = new URL({ original_url: newUrl});
-          url.save((err, data) => err ? next(err) : res.json(data));
+          url.save((err, data) => err ? console.log(err) : res.json(data));
         }
       });
     }
   });
 };
 
-app.post('/api/shorturl/new', (req, res, next) => {
-  validateURL(req.body.url, res, next);
+app.post('/api/shorturl/new', (req, res) => {
+  validateURL(req.body.url, res);
 });
 
 app.get('/api/shorturl/:short_url', (req, res) => {
@@ -74,11 +75,10 @@ app.get('/api/shorturl/:short_url', (req, res) => {
       res.send(err);
     } else {
       url ? res.redirect('http://' + url.original_url) : res.status(404).send('Shortened url could not be found.');
-      console.log(url.original_url, typeof url.original_url);
     }
   });    
 });
 
-app.listen(port, () => {
-  console.log(`Listening on port ${port}`);
+app.listen(3000, () => {
+  console.log(`Listening on port 3000`);
 });
